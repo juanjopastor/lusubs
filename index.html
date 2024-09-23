@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reproductor de Audio con Subtítulos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+            background-color: #111;
+            justify-content: center;
+            align-items: center;
+        }
+
+        audio {
+            width: 100%;
+        }
+
+        button {
+            width: 70px;
+            height: 40px;
+        }
+        .controls {
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        .file-controls {
+            margin-top: 20px;
+        }
+        .subtitle {
+            margin-top: 10px;
+            margin-bottom: 10px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #fffb00;
+        }
+        .othersubtitle {
+            margin-top: 10px;
+            margin-bottom: 10px;
+            font-size: 16px;            
+            color: #9a9a9a;
+        }        
+    </style>
+</head>
+<body>
+
+    <div class="file-controls">
+        <button style="width:120px; height:30px;" onclick="document.getElementById('audioFileInput').click()">MP3</button>
+        <input type='file' id="audioFileInput" style="display:none" accept="audio/mp3">
+        <button style="width:120px; height:30px;" onclick="document.getElementById('subtitleFileInput').click()">SUBS</button>
+        <input type='file' id="subtitleFileInput" style="display:none" accept=".srt,.vtt">
+    </div>
+
+    <div class="controls">
+        <button id="prevBtn">⏮️</button>
+        <button id="repeatBtn">🔄</button>
+        <button id="nextBtn">⏭️</button>
+    </div>
+
+    <audio id="audioPlayer" controls>
+        <source id="audioSource" src="" type="audio/mp3">
+        Tu navegador no soporta el reproductor de audio.
+    </audio>
+
+    <div class="othersubtitle" id="prevSubtitleDisplay">
+        Texto
+    </div>
+    <div class="subtitle" id="subtitleDisplay">
+        Texto
+    </div>
+    <div class="othersubtitle" id="postSubtitleDisplay">
+        Texto
+    </div>
+
+    <script src="app.js"></script>
+
+</body>
+</html>
