@@ -43,7 +43,10 @@
             <span class="upload-icon" aria-hidden="true">↥</span>
             Cargar fichero
           </label>
-          <input id="fileInput" type="file" accept=".srt,.vtt,.txt,text/plain" hidden>
+          <input id="fileInput" type="file" accept=".srt,.vtt,.txt,text/plain" multiple hidden>
+          <button id="clearButton" class="copy-button" type="button">
+            <span aria-hidden="true">×</span> Limpiar
+          </button>
         </div>
       </div>
 
@@ -65,7 +68,7 @@
           <span id="wordCount" class="count-badge">0 palabras</span>
         </div>
         <label class="sr-only" for="resultText">Lista de palabras procesada</label>
-        <textarea id="resultText" spellcheck="false" readonly placeholder="Aquí aparecerá tu lista..."></textarea>
+        <textarea id="resultText" spellcheck="false" placeholder="Aquí aparecerá tu lista..."></textarea>
         <div class="panel-footer output-footer">
           <span id="resultMeta">Esperando texto</span>
           <div class="output-actions">

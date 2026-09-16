@@ -4,6 +4,7 @@ const fileInput = document.querySelector('#fileInput');
 const processButton = document.querySelector('#processButton');
 const copyButton = document.querySelector('#copyButton');
 const downloadButton = document.querySelector('#downloadButton');
+const clearButton = document.querySelector('#clearButton');
 const sourceMeta = document.querySelector('#sourceMeta');
 const resultMeta = document.querySelector('#resultMeta');
 const wordCount = document.querySelector('#wordCount');
@@ -38,11 +39,12 @@ function processText(text) {
     seenWords.add(normalizedWord);
     return true;
   });
+  uniqueWords.sort((firstWord, secondWord) => firstWord.localeCompare(secondWord, 'es'));
   return uniqueWords.join('\n');
 }
 
-function showResult(result) {
-  resultText.value = result;
+function updateResultMeta() {
+  const result = resultText.value;
   const count = result ? result.split('\n').length : 0;
   wordCount.textContent = `${count.toLocaleString('es-ES')} ${count === 1 ? 'palabra' : 'palabras'}`;
   resultMeta.textContent = result ? `${result.length.toLocaleString('es-ES')} caracteres` : 'Sin resultados';
@@ -50,20 +52,30 @@ function showResult(result) {
   downloadButton.disabled = !result;
 }
 
+function showResult(result) {
+  resultText.value = result;
+  updateResultMeta();
+}
+
 sourceText.addEventListener('input', updateSourceMeta);
+resultText.addEventListener('input', updateResultMeta);
 
-fileInput.addEventListener('change', () => {
-  const [file] = fileInput.files;
-  if (!file) return;
+fileInput.addEventListener('change', async () => {
+  const files = Array.from(fileInput.files);
+  if (!files.length) return;
 
-  const reader = new FileReader();
-  reader.addEventListener('load', () => {
-    sourceText.value = reader.result;
-    updateSourceMeta();
-    sourceText.focus();
-  });
-  reader.readAsText(file);
+  const contents = await Promise.all(files.map((file) => file.text()));
+  const separator = sourceText.value && !sourceText.value.endsWith('\n') ? '\n' : '';
+  sourceText.value += separator + contents.join('\n');
+  updateSourceMeta();
+  sourceText.focus();
   fileInput.value = '';
+});
+
+clearButton.addEventListener('click', () => {
+  sourceText.value = '';
+  updateSourceMeta();
+  sourceText.focus();
 });
 
 processButton.addEventListener('click', () => {
