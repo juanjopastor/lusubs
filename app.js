@@ -1,156 +1,99 @@
-let audio = document.getElementById('audioPlayer');
-let subtitleDisplay = document.getElementById('subtitleDisplay');
-let prevBtn = document.getElementById('prevBtn');
-let repeatBtn = document.getElementById('repeatBtn');
-let nextBtn = document.getElementById('nextBtn');
-let audioFileInput = document.getElementById('audioFileInput');
-let subtitleFileInput = document.getElementById('subtitleFileInput');
+const sourceText = document.querySelector('#sourceText');
+const resultText = document.querySelector('#resultText');
+const fileInput = document.querySelector('#fileInput');
+const processButton = document.querySelector('#processButton');
+const copyButton = document.querySelector('#copyButton');
+const downloadButton = document.querySelector('#downloadButton');
+const sourceMeta = document.querySelector('#sourceMeta');
+const resultMeta = document.querySelector('#resultMeta');
+const wordCount = document.querySelector('#wordCount');
 
-// Variables para almacenar subtítulos y tiempos
-let subtitles = [];
-let currentSubtitleIndex = 0;
+const subtitleTimecode = /^\s*(?:\d{1,2}:)?\d{2}:\d{2}[,.]\d{3}\s*-->\s*(?:\d{1,2}:)?\d{2}:\d{2}[,.]\d{3}.*$/;
+const subtitleIndex = /^\s*\d+\s*$/;
+const symbolsPattern = /[?!¡¿.,;:\-_\[\](){}*€$%&/'"]/g;
 
-// Cargar archivo de audio
-audioFileInput.addEventListener('change', function(event) {
-    let file = event.target.files[0];
-    if (file) {
-        let url = URL.createObjectURL(file);
-        document.getElementById('audioSource').src = url;
-        audio.load();
-    }
-});
-
-// Cargar archivo de subtítulos
-subtitleFileInput.addEventListener('change', function(event) {
-    let file = event.target.files[0];
-    if (file) {
-        let reader = new FileReader();
-        reader.onload = function(e) {
-            parseSubtitles(e.target.result);
-        };
-        reader.readAsText(file);
-    }
-});
-
-
-// Función para parsear subtítulos en formato .srt y .vtt
-function parseSubtitles(content) {
-    subtitles = [];
-
-    // Detectar si es .vtt o .srt según la presencia de "WEBVTT" al inicio
-    let isVTT = content.trim().startsWith('WEBVTT');
-    
-    // Limpiar encabezado de VTT (si lo tiene)
-    if (isVTT) {
-        content = content.replace('WEBVTT', '').trim();
-    }
-
-    // Dividimos el contenido por líneas
-    let lines = content.split('\n');
-
-    let regexSRT = /(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})/;
-    let regexVTT = /(\d{2}:\d{2}:\d{2}\.\d{3}) --> (\d{2}:\d{2}:\d{2}\.\d{3})/;
-
-    let currentSubtitle = {};
-    
-    for (let i = 0; i < lines.length; i++) {
-        let line = lines[i].trim();
-
-        // Comprobar si la línea actual tiene tiempos de subtítulo (SRT o VTT)
-        if (regexSRT.test(line) || regexVTT.test(line)) {
-            let match = regexSRT.test(line) ? line.match(regexSRT) : line.match(regexVTT);
-
-            let start = timeToSeconds(match[1].replace(',', '.'));  // Convertimos SRT a formato de segundos
-            let end = timeToSeconds(match[2].replace(',', '.'));    // Convertimos SRT a formato de segundos
-            
-            // Reiniciar el objeto de subtítulo
-            currentSubtitle = {
-                start: start,
-                end: end,
-                text: ""
-            };
-
-            // Agregar al arreglo de subtítulos
-            subtitles.push(currentSubtitle);
-
-        } else if (line !== '' && currentSubtitle) {
-            // Agregar la línea como texto del subtítulo
-            if (currentSubtitle.text) {
-                currentSubtitle.text += '\n'; // Para permitir varias líneas
-            }
-            currentSubtitle.text += line;
-        }
-    }
+function updateSourceMeta() {
+  const characters = sourceText.value.length;
+  sourceMeta.textContent = `${characters.toLocaleString('es-ES')} caracteres`;
 }
 
-// Convertir el tiempo de subtítulos a segundos
-function timeToSeconds(time) {
-    let parts = time.split(/[:,.]/);
-    return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]) + parseInt(parts[3]) / 1000;
+function removeSubtitleMetadata(text) {
+  return text
+    .split(/\r?\n/)
+    .filter((line) => !subtitleTimecode.test(line) && !subtitleIndex.test(line.trim()) && !/^\s*WEBVTT\s*$/i.test(line))
+    .join('\n');
 }
 
-function updateSubtitlesText() {
-    if (subtitles.length > 0) {
-        if (currentSubtitleIndex > 0) {
-            prevSubtitleDisplay.textContent = subtitles[currentSubtitleIndex-1].text;
-        }
-
-        subtitleDisplay.textContent = subtitles[currentSubtitleIndex].text;
-        
-        if (currentSubtitleIndex < subtitles.length - 2) {
-            postSubtitleDisplay.textContent = subtitles[currentSubtitleIndex+1].text;
-        }
-    }
+function processText(text) {
+  const plainText = removeSubtitleMetadata(text);
+  const normalized = plainText.replace(symbolsPattern, ' ');
+  const words = normalized
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter(Boolean);
+  const seenWords = new Set();
+  const uniqueWords = words.filter((word) => {
+    const normalizedWord = word.toLocaleLowerCase('es');
+    if (seenWords.has(normalizedWord)) return false;
+    seenWords.add(normalizedWord);
+    return true;
+  });
+  return uniqueWords.join('\n');
 }
 
-function updateSubtitlesIndex() {
-    let currentTime = audio.currentTime;
-    for (let i = 0; i < subtitles.length; i++) {
-        if (currentTime >= subtitles[i].start && currentTime < subtitles[i].end) {
-            currentSubtitleIndex = i;
-        }
-    }
+function showResult(result) {
+  resultText.value = result;
+  const count = result ? result.split('\n').length : 0;
+  wordCount.textContent = `${count.toLocaleString('es-ES')} ${count === 1 ? 'palabra' : 'palabras'}`;
+  resultMeta.textContent = result ? `${result.length.toLocaleString('es-ES')} caracteres` : 'Sin resultados';
+  copyButton.disabled = !result;
+  downloadButton.disabled = !result;
 }
 
-// Sincronizar subtítulos con el audio
-audio.addEventListener('timeupdate', function() {
-    let currentTime = audio.currentTime;
-    if (subtitles.length > 0) {
+sourceText.addEventListener('input', updateSourceMeta);
 
-        if (currentTime < subtitles[currentSubtitleIndex].start || currentTime > subtitles[currentSubtitleIndex].end) {
-            updateSubtitlesIndex();
-            updateSubtitlesText();
+fileInput.addEventListener('change', () => {
+  const [file] = fileInput.files;
+  if (!file) return;
 
-            if (currentSubtitleIndex < subtitles.length) {
-                audio.pause();
-            }
-        }
-
-       
-    }
-    
+  const reader = new FileReader();
+  reader.addEventListener('load', () => {
+    sourceText.value = reader.result;
+    updateSourceMeta();
+    sourceText.focus();
+  });
+  reader.readAsText(file);
+  fileInput.value = '';
 });
 
-// Funciones de los botones
-prevBtn.addEventListener('click', function() {
-    if (currentSubtitleIndex > 0) {
-        currentSubtitleIndex--;
-        updateSubtitlesText();
-        audio.currentTime = subtitles[currentSubtitleIndex].start;
-        audio.play();
-    }
+processButton.addEventListener('click', () => {
+  showResult(processText(sourceText.value));
 });
 
-repeatBtn.addEventListener('click', function() {
-    audio.currentTime = subtitles[currentSubtitleIndex].start;
-    audio.play();
+copyButton.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(resultText.value);
+    resultMeta.textContent = 'Lista copiada';
+    window.setTimeout(() => {
+      resultMeta.textContent = `${resultText.value.length.toLocaleString('es-ES')} caracteres`;
+    }, 1800);
+  } catch {
+    resultText.select();
+    document.execCommand('copy');
+    resultMeta.textContent = 'Lista copiada';
+  }
 });
 
-nextBtn.addEventListener('click', function() {
-    if (currentSubtitleIndex < subtitles.length - 1) {
-        currentSubtitleIndex++;
-        updateSubtitlesText();
-        audio.currentTime = subtitles[currentSubtitleIndex].start;
-        audio.play();
-    }
+downloadButton.addEventListener('click', () => {
+  const file = new Blob([resultText.value], { type: 'text/plain;charset=utf-8' });
+  const downloadUrl = URL.createObjectURL(file);
+  const link = document.createElement('a');
+  link.href = downloadUrl;
+  link.download = 'palabras.txt';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
 });
+
+updateSourceMeta();

@@ -1,80 +1,90 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reproductor de Audio con Subtítulos</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin-top: 50px;
-            background-color: #111;
-            justify-content: center;
-            align-items: center;
-        }
-
-        audio {
-            width: 100%;
-        }
-
-        button {
-            width: 70px;
-            height: 40px;
-        }
-        .controls {
-            margin-top: 20px;
-            margin-bottom: 20px;
-        }
-        .file-controls {
-            margin-top: 20px;
-        }
-        .subtitle {
-            margin-top: 10px;
-            margin-bottom: 10px;
-            font-size: 24px;
-            font-weight: bold;
-            color: #fffb00;
-        }
-        .othersubtitle {
-            margin-top: 10px;
-            margin-bottom: 10px;
-            font-size: 16px;            
-            color: #9a9a9a;
-        }        
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Convierte subtitulos y texto en una lista de palabras unicas.">
+  <title>LuSubs | Limpiador de subtitulos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <main class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="." aria-label="LuSubs, inicio">
+        <span class="brand-mark" aria-hidden="true">L</span>
+        <span>LuSubs</span>
+      </a>
+      <span class="status-dot"><span aria-hidden="true"></span> Procesamiento local</span>
+    </header>
 
-    <div class="file-controls">
-        <button style="width:120px; height:30px;" onclick="document.getElementById('audioFileInput').click()">MP3</button>
-        <input type='file' id="audioFileInput" style="display:none" accept="audio/mp3">
-        <button style="width:120px; height:30px;" onclick="document.getElementById('subtitleFileInput').click()">SUBS</button>
-        <input type='file' id="subtitleFileInput" style="display:none" accept=".srt,.vtt">
-    </div>
+    <section class="intro" aria-labelledby="page-title">
+      <p class="eyebrow">SUBTITLE / WORD TOOL</p>
+      <h1 id="page-title">De subtítulos a<br><em>palabras limpias.</em></h1>
+      <p class="intro-copy">Pega o carga tu texto. LuSubs elimina el ruido y entrega una palabra única por línea, directamente en tu navegador.</p>
+    </section>
 
-    <div class="controls">
-        <button id="prevBtn">⏮️</button>
-        <button id="repeatBtn">🔄</button>
-        <button id="nextBtn">⏭️</button>
-    </div>
+    <section class="workspace" aria-label="Procesador de texto">
+      <div class="panel panel-input">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">01 / Entrada</p>
+            <h2>Texto de origen</h2>
+          </div>
+          <span class="format-note">.srt &nbsp; .vtt &nbsp; .txt</span>
+        </div>
+        <label class="sr-only" for="sourceText">Texto de origen</label>
+        <textarea id="sourceText" spellcheck="false" placeholder="Pega aquí tus subtítulos o cualquier texto..."></textarea>
+        <div class="panel-footer">
+          <span id="sourceMeta">0 caracteres</span>
+          <label class="file-button" for="fileInput">
+            <span class="upload-icon" aria-hidden="true">↥</span>
+            Cargar fichero
+          </label>
+          <input id="fileInput" type="file" accept=".srt,.vtt,.txt,text/plain" hidden>
+        </div>
+      </div>
 
-    <audio id="audioPlayer" controls>
-        <source id="audioSource" src="" type="audio/mp3">
-        Tu navegador no soporta el reproductor de audio.
-    </audio>
+      <div class="process-column">
+        <div class="process-line" aria-hidden="true"></div>
+        <button id="processButton" class="process-button" type="button">
+          <span>Procesar texto</span>
+          <span class="button-arrow" aria-hidden="true">→</span>
+        </button>
+        <p class="process-hint">Limpia, separa y elimina duplicados</p>
+      </div>
 
-    <div class="othersubtitle" id="prevSubtitleDisplay">
-        Texto
-    </div>
-    <div class="subtitle" id="subtitleDisplay">
-        Texto
-    </div>
-    <div class="othersubtitle" id="postSubtitleDisplay">
-        Texto
-    </div>
+      <div class="panel panel-output">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">02 / Salida</p>
+            <h2>Lista de palabras</h2>
+          </div>
+          <span id="wordCount" class="count-badge">0 palabras</span>
+        </div>
+        <label class="sr-only" for="resultText">Lista de palabras procesada</label>
+        <textarea id="resultText" spellcheck="false" readonly placeholder="Aquí aparecerá tu lista..."></textarea>
+        <div class="panel-footer output-footer">
+          <span id="resultMeta">Esperando texto</span>
+          <div class="output-actions">
+            <button id="copyButton" class="copy-button" type="button" disabled>
+              <span aria-hidden="true">□</span> Copiar lista
+            </button>
+            <button id="downloadButton" class="copy-button" type="button" disabled>
+              <span aria-hidden="true">↓</span> Guardar .txt
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
 
-    <script src="app.js"></script>
-
+    <footer class="page-footer">
+      <span>Sin subidas. Sin cuentas. Tus datos se quedan aquí.</span>
+      <span class="shortcut">PEGAR <kbd>CTRL</kbd> + <kbd>V</kbd></span>
+    </footer>
+  </main>
+  <script src="app.js"></script>
 </body>
 </html>
