@@ -37,7 +37,7 @@ button, label { cursor: pointer; }
 .intro { max-width: 680px; padding: 76px 0 58px; }
 .eyebrow, .panel-kicker { margin: 0 0 13px; color: var(--coral); font-weight: 500; }
 h1, h2, p { margin-top: 0; }
-h1 { margin-bottom: 20px; font-size: clamp(3rem, 7vw, 6.6rem); line-height: .93; letter-spacing: -.09em; }
+h1 { margin-bottom: 20px; font-size: clamp(2.4rem, 5.6vw, 5.3rem); line-height: .93; letter-spacing: -.09em; }
 h1 em { color: var(--accent-dark); font-style: normal; }
 .intro-copy { max-width: 480px; margin-bottom: 0; color: var(--muted); font-size: 16px; line-height: 1.6; }
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 150px minmax(0, 1fr); align-items: center; gap: 26px; }
@@ -85,7 +85,7 @@ kbd { padding: 3px 5px; border: 1px solid var(--line); background: rgba(255,255,
 @media (max-width: 500px) {
   .app-shell { width: calc(100% - 28px); }
   .status-dot { font-size: 8px; }
-  h1 { font-size: clamp(2.8rem, 15vw, 4.5rem); }
+  h1 { font-size: clamp(2.25rem, 12vw, 3.6rem); }
   .panel-heading { padding: 16px; }
   textarea { padding: 16px; }
   .panel-footer { padding: 10px 16px; }

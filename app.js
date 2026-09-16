@@ -15,7 +15,7 @@ const wordPattern = /[\p{L}\p{M}]+/gu;
 
 function updateSourceMeta() {
   const characters = sourceText.value.length;
-  sourceMeta.textContent = `${characters.toLocaleString('es-ES')} caracteres`;
+  sourceMeta.textContent = `${characters.toLocaleString(navigator.language)} characters`;
 }
 
 function removeSubtitleMetadata(text) {
@@ -43,8 +43,8 @@ function processText(text) {
 function updateResultMeta() {
   const result = resultText.value;
   const count = result ? result.split('\n').length : 0;
-  wordCount.textContent = `${count.toLocaleString('es-ES')} ${count === 1 ? 'palabra' : 'palabras'}`;
-  resultMeta.textContent = result ? `${result.length.toLocaleString('es-ES')} caracteres` : 'Sin resultados';
+  wordCount.textContent = `${count.toLocaleString(navigator.language)} ${count === 1 ? 'word' : 'words'}`;
+  resultMeta.textContent = result ? `${result.length.toLocaleString(navigator.language)} characters` : 'No results';
   copyButton.disabled = !result;
   downloadButton.disabled = !result;
 }
@@ -82,9 +82,9 @@ processButton.addEventListener('click', () => {
 copyButton.addEventListener('click', async () => {
   try {
     await navigator.clipboard.writeText(resultText.value);
-    resultMeta.textContent = 'Lista copiada';
+    resultMeta.textContent = 'List copied';
     window.setTimeout(() => {
-      resultMeta.textContent = `${resultText.value.length.toLocaleString('es-ES')} caracteres`;
+      resultMeta.textContent = `${resultText.value.length.toLocaleString(navigator.language)} characters`;
     }, 1800);
   } catch {
     resultText.select();
@@ -98,7 +98,7 @@ downloadButton.addEventListener('click', () => {
   const downloadUrl = URL.createObjectURL(file);
   const link = document.createElement('a');
   link.href = downloadUrl;
-  link.download = 'palabras.txt';
+  link.download = 'words.txt';
   document.body.appendChild(link);
   link.click();
   link.remove();
