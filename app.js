@@ -10,7 +10,7 @@ const wordCount = document.querySelector('#wordCount');
 
 const subtitleTimecode = /^\s*(?:\d{1,2}:)?\d{2}:\d{2}[,.]\d{3}\s*-->\s*(?:\d{1,2}:)?\d{2}:\d{2}[,.]\d{3}.*$/;
 const subtitleIndex = /^\s*\d+\s*$/;
-const symbolsPattern = /[?!¡¿.,;:\-_\[\](){}*€$%&/'"]/g;
+const symbolsPattern = /[?!¡¿.,;:\-_\[\](){}*€$%&/'…0123456789\\"]/g;
 
 function updateSourceMeta() {
   const characters = sourceText.value.length;
@@ -25,7 +25,7 @@ function removeSubtitleMetadata(text) {
 }
 
 function processText(text) {
-  const plainText = removeSubtitleMetadata(text);
+  const plainText = removeSubtitleMetadata(text).toLocaleLowerCase('es');
   const normalized = plainText.replace(symbolsPattern, ' ');
   const words = normalized
     .split(/\s+/)
