@@ -36,7 +36,7 @@ function processText(text) {
     seenWords.add(normalizedWord);
     return true;
   });
-  uniqueWords.sort((firstWord, secondWord) => firstWord.localeCompare(secondWord, locale));
+  //uniqueWords.sort((firstWord, secondWord) => firstWord.localeCompare(secondWord, locale));
   return uniqueWords.join('\n');
 }
 
