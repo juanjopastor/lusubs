@@ -21,23 +21,29 @@ function updateSourceMeta() {
 function removeSubtitleMetadata(text) {
   return text
     .split(/\r?\n/)
-    .filter((line) => !subtitleTimecode.test(line) && !subtitleIndex.test(line.trim()) && !/^\s*WEBVTT\s*$/i.test(line))
-    .join('\n');
+    .filter((line) => !subtitleTimecode.test(line) && !subtitleIndex.test(line.trim()) && !/^\s*WEBVTT\s*$/i.test(line));
 }
 
 function processText(text) {
   const locale = navigator.language;
-  const plainText = removeSubtitleMetadata(text).toLocaleLowerCase(locale);
-  const words = plainText.match(wordPattern) ?? [];
   const seenWords = new Set();
-  const uniqueWords = words.filter((word) => {
-    const normalizedWord = word.toLocaleLowerCase(locale);
-    if (seenWords.has(normalizedWord)) return false;
-    seenWords.add(normalizedWord);
-    return true;
-  });
-  //uniqueWords.sort((firstWord, secondWord) => firstWord.localeCompare(secondWord, locale));
-  return uniqueWords.join('\n');
+  const rows = [];
+
+  for (const line of removeSubtitleMetadata(text)) {
+    const phrase = line.trim();
+    const words = phrase.toLocaleLowerCase(locale).match(wordPattern) ?? [];
+    for (const word of words) {
+      if (seenWords.has(word)) continue;
+      seenWords.add(word);
+      rows.push([word, phrase]);
+    }
+  }
+
+  return rows.map((row) => row.map(escapeCsvField).join(',')).join('\n');
+}
+
+function escapeCsvField(value) {
+  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
 function updateResultMeta() {
@@ -94,11 +100,11 @@ copyButton.addEventListener('click', async () => {
 });
 
 downloadButton.addEventListener('click', () => {
-  const file = new Blob([resultText.value], { type: 'text/plain;charset=utf-8' });
+  const file = new Blob([resultText.value], { type: 'text/csv;charset=utf-8' });
   const downloadUrl = URL.createObjectURL(file);
   const link = document.createElement('a');
   link.href = downloadUrl;
-  link.download = 'words.txt';
+  link.download = 'words.csv';
   document.body.appendChild(link);
   link.click();
   link.remove();

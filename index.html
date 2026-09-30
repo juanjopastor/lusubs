@@ -23,7 +23,7 @@
     <section class="intro" aria-labelledby="page-title">
       <p class="eyebrow">SUBTITLE / WORD TOOL</p>
       <h1 id="page-title">From subtitles to<br><em>clean words.</em></h1>
-      <p class="intro-copy">Paste or load your text. LuSubs removes the noise and returns one unique word per line, directly in your browser.</p>
+      <p class="intro-copy">Paste or load your subtitles. LuSubs returns each unique word with its original subtitle line, directly in your browser.</p>
     </section>
 
     <section class="workspace" aria-label="Text processor">
@@ -63,12 +63,12 @@
         <div class="panel-heading">
           <div>
             <p class="panel-kicker">02 / Output</p>
-            <h2>Word list</h2>
+            <h2>Words and phrases</h2>
           </div>
           <span id="wordCount" class="count-badge">0 words</span>
         </div>
-        <label class="sr-only" for="resultText">Processed word list</label>
-        <textarea id="resultText" spellcheck="false" placeholder="Your list will appear here..."></textarea>
+        <label class="sr-only" for="resultText">Processed CSV with words and phrases</label>
+        <textarea id="resultText" spellcheck="false" placeholder="Your CSV will appear here..."></textarea>
         <div class="panel-footer output-footer">
           <span id="resultMeta">Waiting for text</span>
           <div class="output-actions">
@@ -76,7 +76,7 @@
               <span aria-hidden="true">□</span> Copy list
             </button>
             <button id="downloadButton" class="copy-button" type="button" disabled>
-              <span aria-hidden="true">↓</span> Save .txt
+              <span aria-hidden="true">↓</span> Save .csv
             </button>
           </div>
         </div>
