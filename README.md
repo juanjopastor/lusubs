@@ -17,6 +17,7 @@ LuSubs is a lightweight browser tool that turns subtitle files and plain text in
 - Remove duplicate words while respecting the browser's language settings.
 - Keep the first subtitle line where each unique word appears.
 - Copy the CSV result or download it as a `.csv` file.
+- Open or download a clean HTML subtitle view with timestamps and imported file names, ready to copy into a document.
 - Process everything locally in the browser. No uploads, accounts, or server required.
 
 ## How to use

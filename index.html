@@ -52,10 +52,20 @@
 
       <div class="process-column">
         <div class="process-line" aria-hidden="true"></div>
-        <button id="processButton" class="process-button" type="button">
-          <span>Process text</span>
-          <span class="button-arrow" aria-hidden="true">→</span>
-        </button>
+        <div class="process-actions">
+          <button id="processButton" class="process-button" type="button">
+            <span>Process text</span>
+            <span class="button-arrow" aria-hidden="true">→</span>
+          </button>
+          <button id="printableButton" class="process-button printable-button" type="button">
+            <span>Printable</span>
+            <span class="button-arrow" aria-hidden="true">↗</span>
+          </button>
+          <button id="downloadHtmlButton" class="process-button printable-button" type="button">
+            <span>Save .html</span>
+            <span class="button-arrow" aria-hidden="true">↓</span>
+          </button>
+        </div>
         <p class="process-hint">Clean, split and remove duplicates</p>
       </div>
 

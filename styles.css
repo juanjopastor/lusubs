@@ -40,7 +40,7 @@ h1, h2, p { margin-top: 0; }
 h1 { margin-bottom: 20px; font-size: clamp(2.4rem, 5.6vw, 5.3rem); line-height: .93; letter-spacing: -.09em; }
 h1 em { color: var(--accent-dark); font-style: normal; }
 .intro-copy { max-width: 480px; margin-bottom: 0; color: var(--muted); font-size: 16px; line-height: 1.6; }
-.workspace { display: grid; grid-template-columns: minmax(0, 1fr) 150px minmax(0, 1fr); align-items: center; gap: 26px; }
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) 180px minmax(0, 1fr); align-items: center; gap: 26px; }
 .panel { min-width: 0; border: 1px solid var(--line); background: rgba(255, 254, 250, .78); box-shadow: 8px 8px 0 rgba(23, 34, 31, .04); }
 .panel-input { border-top: 4px solid var(--blue); }
 .panel-output { border-top: 4px solid var(--accent); }
@@ -58,9 +58,12 @@ textarea:focus { background: rgba(255, 255, 255, .5); }
 .file-button:hover { background: #add6d4; }
 .upload-icon { font-family: var(--mono); font-size: 16px; line-height: 10px; }
 .process-column { display: flex; flex-direction: column; align-items: center; gap: 13px; }
+.process-actions { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .process-line { width: 1px; height: 54px; background: var(--line); }
 .process-button { display: flex; align-items: center; justify-content: space-between; width: 148px; padding: 13px 13px 13px 15px; border: 1px solid var(--ink); background: var(--ink); color: var(--accent); font-size: 12px; font-weight: 600; transition: transform .2s, background .2s; }
 .process-button:hover { transform: translateY(-3px); background: #25342f; }
+.printable-button { background: transparent; color: var(--ink); }
+.printable-button:hover { background: #fffefa; }
 .button-arrow { font-size: 20px; font-weight: 400; line-height: 12px; }
 .process-hint { max-width: 120px; margin: 0; text-align: center; line-height: 1.5; }
 .count-badge { padding: 6px 8px; color: var(--ink); background: var(--accent); font-size: 9px; }
@@ -90,4 +93,6 @@ kbd { padding: 3px 5px; border: 1px solid var(--line); background: rgba(255,255,
   textarea { padding: 16px; }
   .panel-footer { padding: 10px 16px; }
   .page-footer { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .process-actions { gap: 8px; }
+  .process-button { width: 138px; }
 }
