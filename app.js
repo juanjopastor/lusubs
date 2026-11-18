@@ -50,15 +50,22 @@ function processText(text) {
 function getPrintableSubtitles(text) {
   const subtitles = [];
   let currentSubtitle = null;
+  let pendingSubtitleIndex = null;
 
   for (const line of text.split(/\r?\n/)) {
     const timecode = line.match(printableTimecode);
     if (timecode) {
       if (currentSubtitle) subtitles.push(currentSubtitle);
-      currentSubtitle = { start: timecode[1], end: timecode[2], lines: [] };
-    } else if (currentSubtitle && !subtitleIndex.test(line.trim()) && !/^\s*WEBVTT\s*$/i.test(line)) {
-      const cleanLine = line.replace(/<[^>]*>/g, '').trim();
-      if (cleanLine) currentSubtitle.lines.push(cleanLine);
+      currentSubtitle = { index: pendingSubtitleIndex, start: timecode[1], end: timecode[2], lines: [] };
+      pendingSubtitleIndex = null;
+    } else if (subtitleIndex.test(line.trim())) {
+      pendingSubtitleIndex = line.trim();
+    } else {
+      if (line.trim()) pendingSubtitleIndex = null;
+      if (currentSubtitle && !/^\s*WEBVTT\s*$/i.test(line)) {
+        const cleanLine = line.replace(/<[^>]*>/g, '').trim();
+        if (cleanLine) currentSubtitle.lines.push(cleanLine);
+      }
     }
   }
 
@@ -67,13 +74,18 @@ function getPrintableSubtitles(text) {
   if (subtitles.length) {
     return subtitles
       .filter((subtitle) => subtitle.lines.length)
-      .map((subtitle) => ({ start: subtitle.start, end: subtitle.end, text: subtitle.lines.join('\n') }));
+      .map((subtitle) => ({
+        index: subtitle.index,
+        start: subtitle.start,
+        end: subtitle.end,
+        text: subtitle.lines.join('\n'),
+      }));
   }
 
   return removeSubtitleMetadata(text)
     .map((line) => line.replace(/<[^>]*>/g, '').trim())
     .filter(Boolean)
-    .map((line) => ({ start: null, text: line }));
+    .map((line) => ({ index: null, start: null, text: line }));
 }
 
 function escapeHtml(value) {
@@ -100,7 +112,7 @@ function buildPrintableHtml() {
     const subtitles = getPrintableSubtitles(section.text)
       .map((subtitle) => {
         const timestamp = subtitle.start
-          ? `<p style="margin: 0; line-height: 1.2;"><span style="color: #78817c; font-size: 9pt;">[${escapeHtml(subtitle.start)} --> ${escapeHtml(subtitle.end)}]</span></p>`
+          ? `<p style="margin: 0; line-height: 1.2;"><span style="color: #78817c; font-size: 9pt;">${subtitle.index !== null ? `<strong style="font-weight: bold;">${escapeHtml(subtitle.index)}</strong> ` : ''}[${escapeHtml(subtitle.start)} --> ${escapeHtml(subtitle.end)}]</span></p>`
           : '';
         const text = subtitle.text.split(/\r?\n/).map(escapeHtml).join('<br>');
         return `${timestamp}<p style="margin: 0 0 12pt; line-height: 1.5;"><span style="color: #17221f; font-size: 12pt;">${text}</span></p>`;
