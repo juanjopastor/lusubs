@@ -1,27 +1,22 @@
-const sourceText = document.querySelector('#sourceText');
-const resultText = document.querySelector('#resultText');
 const fileInput = document.querySelector('#fileInput');
-const processButton = document.querySelector('#processButton');
-const printableButton = document.querySelector('#printableButton');
+const loadButton = document.querySelector('#loadButton');
+const audioInput = document.querySelector('#audioInput');
+const loadAudioButton = document.querySelector('#loadAudioButton');
+const audioPlayer = document.querySelector('#audioPlayer');
+const downloadVttButton = document.querySelector('#downloadVttButton');
 const downloadHtmlButton = document.querySelector('#downloadHtmlButton');
-const copyButton = document.querySelector('#copyButton');
-const downloadButton = document.querySelector('#downloadButton');
-const clearButton = document.querySelector('#clearButton');
-const sourceMeta = document.querySelector('#sourceMeta');
-const resultMeta = document.querySelector('#resultMeta');
-const wordCount = document.querySelector('#wordCount');
+const previewContainer = document.querySelector('#previewContainer');
+const appTitle = document.querySelector('#appTitle');
+const brand = document.querySelector('.brand');
 
 const subtitleTimecode = /^\s*(?:\d{1,2}:)?\d{2}:\d{2}[,.]\d{3}\s*-->\s*(?:\d{1,2}:)?\d{2}:\d{2}[,.]\d{3}.*$/;
 const printableTimecode = /^\s*((?:\d{1,2}:)?\d{2}:\d{2}[,.]\d{3})\s*-->\s*((?:\d{1,2}:)?\d{2}:\d{2}[,.]\d{3}).*$/;
 const subtitleIndex = /^\s*\d+\s*$/;
-const wordPattern = /[\p{L}\p{M}]+/gu;
 let printableSections = [];
-let trackedSourceValue = '';
-
-function updateSourceMeta() {
-  const characters = sourceText.value.length;
-  sourceMeta.textContent = `${characters.toLocaleString(navigator.language)} characters`;
-}
+let audioObjectUrl = '';
+let activeCueKey = null;
+let activeCueEnd = null;
+let cueStopTimer = 0;
 
 function removeSubtitleMetadata(text) {
   return text
@@ -29,34 +24,58 @@ function removeSubtitleMetadata(text) {
     .filter((line) => !subtitleTimecode.test(line) && !subtitleIndex.test(line.trim()) && !/^\s*WEBVTT\s*$/i.test(line));
 }
 
-function processText(text) {
-  const locale = navigator.language;
-  const seenWords = new Set();
-  const rows = [];
-
-  for (const line of removeSubtitleMetadata(text)) {
-    const phrase = line.trim();
-    const words = phrase.toLocaleLowerCase(locale).match(wordPattern) ?? [];
-    for (const word of words) {
-      if (seenWords.has(word)) continue;
-      seenWords.add(word);
-      rows.push([word, phrase]);
-    }
-  }
-
-  return rows.map((row) => row.map(escapeCsvField).join(',')).join('\n');
-}
-
-function getPrintableSubtitles(text) {
+function getPrintableSubtitles(text, readVttNotes = false) {
   const subtitles = [];
+  const visibleLines = [];
+  const lines = text.split(/\r?\n/);
   let currentSubtitle = null;
   let pendingSubtitleIndex = null;
+  let pendingNote = '';
 
-  for (const line of text.split(/\r?\n/)) {
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex];
+    const followingLineIsCue = lineIndex + 1 < lines.length && printableTimecode.test(lines[lineIndex + 1]);
+    const startsNoteBlock = readVttNotes
+      && /^NOTE(?:[ \t]|$)/.test(line)
+      && (!currentSubtitle || lineIndex === 0 || !lines[lineIndex - 1].trim())
+      && !followingLineIsCue;
+    if (startsNoteBlock) {
+      if (currentSubtitle) {
+        subtitles.push(currentSubtitle);
+        currentSubtitle = null;
+      }
+
+      const isLuSubsNote = line.trim() === 'NOTE LUSUBS';
+      const noteLines = [];
+      while (lineIndex + 1 < lines.length && lines[lineIndex + 1].trim()) {
+        noteLines.push(lines[lineIndex + 1]);
+        lineIndex += 1;
+      }
+      pendingNote = isLuSubsNote ? noteLines.join(' ').trim() : '';
+      continue;
+    }
+
+    if (readVttNotes && !line.trim()) {
+      if (currentSubtitle) {
+        subtitles.push(currentSubtitle);
+        currentSubtitle = null;
+      }
+      visibleLines.push(line);
+      continue;
+    }
+
+    visibleLines.push(line);
     const timecode = line.match(printableTimecode);
     if (timecode) {
       if (currentSubtitle) subtitles.push(currentSubtitle);
-      currentSubtitle = { index: pendingSubtitleIndex, start: timecode[1], end: timecode[2], lines: [] };
+      currentSubtitle = {
+        index: pendingSubtitleIndex,
+        start: timecode[1],
+        end: timecode[2],
+        lines: [],
+        note: pendingNote,
+      };
+      pendingNote = '';
       pendingSubtitleIndex = null;
     } else if (subtitleIndex.test(line.trim())) {
       pendingSubtitleIndex = line.trim();
@@ -79,13 +98,14 @@ function getPrintableSubtitles(text) {
         start: subtitle.start,
         end: subtitle.end,
         text: subtitle.lines.join('\n'),
+        note: subtitle.note,
       }));
   }
 
-  return removeSubtitleMetadata(text)
+  return removeSubtitleMetadata(visibleLines.join('\n'))
     .map((line) => line.replace(/<[^>]*>/g, '').trim())
     .filter(Boolean)
-    .map((line) => ({ index: null, start: null, text: line }));
+    .map((line) => ({ index: null, start: null, end: null, text: line, note: '' }));
 }
 
 function escapeHtml(value) {
@@ -98,30 +118,119 @@ function escapeHtml(value) {
   })[character]);
 }
 
-function getPrintableSections() {
-  return sourceText.value === trackedSourceValue && printableSections.length
-    ? printableSections
-    : [{ name: null, text: sourceText.value }];
+function getSubtitleName(fileName) {
+  return fileName.replace(/\.(?:srt|vtt)$/i, '') || 'Subtitles';
+}
+
+function getSubtitleTitle(sections) {
+  const names = sections.filter((section) => section.name).map((section) => getSubtitleName(section.name));
+  return names.length ? names.join(' - ') : 'Subtitles';
+}
+
+function getTimeInSeconds(timecode) {
+  const parts = timecode.replace(',', '.').split(':').map(Number);
+  const seconds = parts.pop();
+  const minutes = parts.pop();
+  const hours = parts.length ? parts.pop() : 0;
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
+function canPlaySubtitle(subtitle) {
+  if (!audioObjectUrl || audioPlayer.readyState < 1 || audioPlayer.error || !subtitle.start || !subtitle.end) {
+    return false;
+  }
+
+  const start = getTimeInSeconds(subtitle.start);
+  const end = getTimeInSeconds(subtitle.end);
+  return Number.isFinite(start)
+    && Number.isFinite(end)
+    && start >= 0
+    && start < end
+    && start < audioPlayer.duration;
+}
+
+function updatePlaybackButtons() {
+  previewContainer.querySelectorAll('.subtitle-play').forEach((button) => {
+    const isActive = button.dataset.cueKey === activeCueKey;
+    button.classList.toggle('is-playing', isActive);
+    button.setAttribute('aria-pressed', String(isActive));
+  });
+}
+
+function clearActiveCue() {
+  if (cueStopTimer) {
+    window.clearTimeout(cueStopTimer);
+    cueStopTimer = 0;
+  }
+  activeCueKey = null;
+  activeCueEnd = null;
+  updatePlaybackButtons();
+}
+
+function stopCueAtEnd() {
+  if (activeCueEnd !== null && audioPlayer.currentTime >= activeCueEnd) {
+    audioPlayer.pause();
+    clearActiveCue();
+  }
+}
+
+function scheduleCueStop(cueKey) {
+  if (activeCueKey !== cueKey || activeCueEnd === null) return;
+
+  const remaining = (activeCueEnd - audioPlayer.currentTime) / audioPlayer.playbackRate;
+  cueStopTimer = window.setTimeout(() => {
+    cueStopTimer = 0;
+    if (activeCueKey !== cueKey || activeCueEnd === null) return;
+    stopCueAtEnd();
+    if (activeCueKey === cueKey) scheduleCueStop(cueKey);
+  }, Math.max(20, remaining * 1000));
+}
+
+function buildSubtitleMarkup(includeSectionTitles, includeNoteControls) {
+  return printableSections.map((section, sectionIndex) => {
+    const heading = includeSectionTitles && section.name
+      ? `<h1>${escapeHtml(getSubtitleName(section.name))}</h1>`
+      : '';
+    const separator = includeSectionTitles && sectionIndex > 0 ? '<hr>' : '';
+    const subtitles = section.subtitles.map((subtitle, subtitleIndex) => {
+      const cueKey = `${sectionIndex}:${subtitleIndex}`;
+      const timestamp = subtitle.start
+        ? `<span class="subtitle-time">${subtitle.index !== null ? `<strong>${escapeHtml(subtitle.index)}</strong> ` : ''}[${escapeHtml(subtitle.start)} --> ${escapeHtml(subtitle.end)}]</span>`
+        : '';
+      const text = subtitle.text.split(/\r?\n/).map(escapeHtml).join('<br>');
+      const note = subtitle.note ? `<p class="subtitle-note">${escapeHtml(subtitle.note)}</p>` : '';
+      const canPlay = canPlaySubtitle(subtitle);
+      const isPlaying = cueKey === activeCueKey;
+      const playbackButton = includeNoteControls
+        ? `<button class="subtitle-play${isPlaying ? ' is-playing' : ''}" type="button" data-play-cue data-cue-key="${cueKey}" data-section="${sectionIndex}" data-subtitle="${subtitleIndex}" aria-label="Play subtitle ${subtitleIndex + 1}" aria-pressed="${isPlaying}" title="${canPlay ? 'Play this subtitle' : 'Load an MP3 to play this subtitle'}" ${canPlay ? '' : 'disabled'}>
+            ${timestamp}<span class="subtitle-text">${text}</span>
+          </button>`
+        : `<div class="subtitle-content">${timestamp}<p class="subtitle-text">${text}</p></div>`;
+      const noteControls = includeNoteControls
+        ? `<button class="note-trigger" type="button" data-note-action="edit" aria-label="Add or edit note for subtitle ${subtitleIndex + 1}">+</button>
+          <form class="note-editor" data-section="${sectionIndex}" data-subtitle="${subtitleIndex}" hidden>
+            <input class="note-input" type="text" aria-label="Note for subtitle ${subtitleIndex + 1}" placeholder="Write a note..." value="${escapeHtml(subtitle.note || '')}">
+            <div class="note-actions">
+              <button class="note-save" type="submit">Save note</button>
+              <button class="note-cancel" type="button" data-note-action="cancel">Cancel</button>
+            </div>
+          </form>`
+        : '';
+
+      return `<article class="subtitle-row" data-section="${sectionIndex}" data-subtitle="${subtitleIndex}">
+        ${playbackButton}
+        ${note}
+        ${noteControls}
+      </article>`;
+    }).join('\n');
+
+    return `${separator}${heading}${subtitles}`;
+  }).join('\n');
 }
 
 function buildPrintableHtml() {
-  const sections = getPrintableSections();
-  const subtitleMarkup = sections.map((section, index) => {
-    const heading = section.name ? `<h1>${escapeHtml(section.name)}</h1>` : '';
-    const separator = index > 0 ? '<hr>' : '';
-    const subtitles = getPrintableSubtitles(section.text)
-      .map((subtitle) => {
-        const timestamp = subtitle.start
-          ? `<p style="margin: 0; line-height: 1.2;"><span style="color: #78817c; font-size: 9pt;">${subtitle.index !== null ? `<strong style="font-weight: bold;">${escapeHtml(subtitle.index)}</strong> ` : ''}[${escapeHtml(subtitle.start)} --> ${escapeHtml(subtitle.end)}]</span></p>`
-          : '';
-        const text = subtitle.text.split(/\r?\n/).map(escapeHtml).join('<br>');
-        return `${timestamp}<p style="margin: 0 0 12pt; line-height: 1.5;"><span style="color: #17221f; font-size: 12pt;">${text}</span></p>`;
-      })
-      .join('\n');
-    return `${separator}${heading}${subtitles}`;
-  }).join('\n');
-  const fileNames = sections.filter((section) => section.name).map((section) => section.name);
-  const title = fileNames.length ? fileNames.join(' - ') : 'Subtitles';
+  const subtitleMarkup = buildSubtitleMarkup(true, false);
+  const title = getSubtitleTitle(printableSections);
 
   return `<!doctype html>
 <html lang="en">
@@ -132,7 +241,10 @@ function buildPrintableHtml() {
   <style>
     body { max-width: 800px; margin: 40px auto; padding: 0 24px; color: #17221f; background: #fff; font: 16px/1.6 Arial, sans-serif; }
     h1 { margin: 0 0 16px; font-size: 20px; }
-    p { margin: 0 0 16px; white-space: pre-wrap; }
+    .subtitle-row { margin: 0 0 12pt; }
+    .subtitle-time { display: block; color: #78817c; font-size: 9pt; line-height: 1.2; }
+    .subtitle-text { margin: 0; color: #17221f; font-size: 12pt; line-height: 1.5; white-space: pre-wrap; }
+    .subtitle-note { margin: 4pt 0 0; color: #c0392b; font-size: 11pt; line-height: 1.4; white-space: pre-wrap; }
     hr { margin: 24px 0; border: 0; border-top: 1px solid #d9ddd5; }
   </style>
 </head>
@@ -142,114 +254,188 @@ function buildPrintableHtml() {
 </html>`;
 }
 
-function getPrintableHtmlFilename() {
-  const fileNames = getPrintableSections().filter((section) => section.name).map((section) => section.name);
-  const baseName = fileNames.length === 1 ? fileNames[0].replace(/\.[^.]+$/, '') : 'subtitles';
-  const safeBaseName = baseName.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/[. ]+$/, '') || 'subtitles';
-  return `${safeBaseName}.html`;
+function getExportBaseName() {
+  const baseName = printableSections.length === 1
+    ? getSubtitleName(printableSections[0].name)
+    : 'subtitles';
+  return baseName.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/[. ]+$/, '') || 'subtitles';
 }
 
-function openPrintableSubtitles() {
-  const printableWindow = window.open('', '_blank');
-  if (!printableWindow) {
-    window.alert('Please allow pop-ups to open the printable version.');
+function renderPreview() {
+  previewContainer.innerHTML = buildSubtitleMarkup(false, true);
+  previewContainer.hidden = false;
+}
+
+function playSubtitleCue(button) {
+  const section = printableSections[Number(button.dataset.section)];
+  const subtitle = section.subtitles[Number(button.dataset.subtitle)];
+  if (!canPlaySubtitle(subtitle)) return;
+
+  const cueKey = button.dataset.cueKey;
+  if (activeCueKey === cueKey && !audioPlayer.paused) {
+    audioPlayer.pause();
+    clearActiveCue();
     return;
   }
 
-  printableWindow.document.write(buildPrintableHtml());
-  printableWindow.document.close();
+  audioPlayer.pause();
+  clearActiveCue();
+  activeCueKey = cueKey;
+  activeCueEnd = Math.min(getTimeInSeconds(subtitle.end), audioPlayer.duration);
+  audioPlayer.currentTime = getTimeInSeconds(subtitle.start);
+  updatePlaybackButtons();
+
+  const playback = audioPlayer.play();
+  if (playback) {
+    playback.then(() => scheduleCueStop(cueKey));
+    playback.catch(() => {
+      if (activeCueKey === cueKey) clearActiveCue();
+      window.alert('The selected audio could not be played.');
+    });
+  }
 }
 
-function downloadPrintableHtml() {
-  const file = new Blob([buildPrintableHtml()], { type: 'text/html;charset=utf-8' });
+function downloadFile(contents, filename, contentType) {
+  const file = new Blob([contents], { type: contentType });
   const downloadUrl = URL.createObjectURL(file);
   const link = document.createElement('a');
   link.href = downloadUrl;
-  link.download = getPrintableHtmlFilename();
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
 }
 
-function escapeCsvField(value) {
-  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+function downloadPrintableHtml() {
+  downloadFile(buildPrintableHtml(), `${getExportBaseName()}.html`, 'text/html;charset=utf-8');
 }
 
-function updateResultMeta() {
-  const result = resultText.value;
-  const count = result ? result.split('\n').length : 0;
-  wordCount.textContent = `${count.toLocaleString(navigator.language)} ${count === 1 ? 'word' : 'words'}`;
-  resultMeta.textContent = result ? `${result.length.toLocaleString(navigator.language)} characters` : 'No results';
-  copyButton.disabled = !result;
-  downloadButton.disabled = !result;
+function canSaveAsVtt() {
+  return printableSections.length > 0
+    && printableSections.every((section) => section.subtitles.length > 0
+      && section.subtitles.every((subtitle) => subtitle.start && subtitle.end));
 }
 
-function showResult(result) {
-  resultText.value = result;
-  updateResultMeta();
+function formatWebVttTime(time) {
+  return time.replace(/^(\d):/, '0$1:').replace(',', '.');
 }
 
-sourceText.addEventListener('input', updateSourceMeta);
-resultText.addEventListener('input', updateResultMeta);
+function buildAnnotatedVtt() {
+  const cues = printableSections.flatMap((section) => section.subtitles.map((subtitle) => {
+    const note = subtitle.note ? `NOTE LUSUBS\n${subtitle.note.replace(/[\r\n]+/g, ' ')}\n\n` : '';
+    const start = formatWebVttTime(subtitle.start);
+    const end = formatWebVttTime(subtitle.end);
+    return `${note}${start} --> ${end}\n${subtitle.text}`;
+  }));
+  return `WEBVTT\n\n${cues.join('\n\n')}\n`;
+}
+
+function downloadAnnotatedVtt() {
+  downloadFile(buildAnnotatedVtt(), `${getExportBaseName()}.vtt`, 'text/vtt;charset=utf-8');
+}
+
+function saveNote(form) {
+  const section = printableSections[Number(form.dataset.section)];
+  const subtitle = section.subtitles[Number(form.dataset.subtitle)];
+  subtitle.note = form.querySelector('.note-input').value.trim();
+  renderPreview();
+}
+
+loadButton.addEventListener('click', () => fileInput.click());
+loadAudioButton.addEventListener('click', () => audioInput.click());
+
+audioInput.addEventListener('change', () => {
+  const file = audioInput.files[0];
+  if (!file) return;
+  if (!/\.mp3$/i.test(file.name) && !/^audio\/(?:mpeg|mp3)$/i.test(file.type)) {
+    audioInput.value = '';
+    window.alert('Choose an MP3 audio file.');
+    return;
+  }
+
+  const previousUrl = audioObjectUrl;
+  audioPlayer.pause();
+  clearActiveCue();
+  audioObjectUrl = URL.createObjectURL(file);
+  audioPlayer.src = audioObjectUrl;
+  audioPlayer.load();
+  if (previousUrl) URL.revokeObjectURL(previousUrl);
+  audioInput.value = '';
+});
+
+audioPlayer.addEventListener('loadedmetadata', () => {
+  if (printableSections.length) renderPreview();
+});
+
+audioPlayer.addEventListener('timeupdate', stopCueAtEnd);
+
+audioPlayer.addEventListener('ended', clearActiveCue);
+
+audioPlayer.addEventListener('error', () => {
+  clearActiveCue();
+  if (printableSections.length) renderPreview();
+  window.alert('The selected MP3 audio could not be loaded.');
+});
+
+previewContainer.addEventListener('click', (event) => {
+  const playButton = event.target.closest('button[data-play-cue]');
+  if (playButton) {
+    playSubtitleCue(playButton);
+    return;
+  }
+
+  const button = event.target.closest('button[data-note-action]');
+  if (!button) return;
+
+  if (button.dataset.noteAction === 'edit') {
+    const form = button.closest('.subtitle-row').querySelector('.note-editor');
+    form.hidden = false;
+    form.querySelector('.note-input').focus();
+  } else if (button.dataset.noteAction === 'cancel') {
+    const form = button.closest('.note-editor');
+    const section = printableSections[Number(form.dataset.section)];
+    const subtitle = section.subtitles[Number(form.dataset.subtitle)];
+    form.querySelector('.note-input').value = subtitle.note || '';
+    form.hidden = true;
+  }
+});
+
+previewContainer.addEventListener('submit', (event) => {
+  const form = event.target.closest('.note-editor');
+  if (!form) return;
+  event.preventDefault();
+  saveNote(form);
+});
 
 fileInput.addEventListener('change', async () => {
   const files = Array.from(fileInput.files);
   if (!files.length) return;
 
   const contents = await Promise.all(files.map((file) => file.text()));
-  if (sourceText.value !== trackedSourceValue) {
-    printableSections = sourceText.value ? [{ name: null, text: sourceText.value }] : [];
-  }
-  const newSections = files.map((file, index) => ({ name: file.name, text: contents[index] }));
-  const separator = sourceText.value && !sourceText.value.endsWith('\n') ? '\n' : '';
-  sourceText.value += separator + contents.join('\n');
-  printableSections.push(...newSections);
-  trackedSourceValue = sourceText.value;
-  updateSourceMeta();
-  sourceText.focus();
+  audioPlayer.pause();
+  clearActiveCue();
+  printableSections = files.map((file, index) => {
+    const isVtt = /\.vtt$/i.test(file.name);
+    return {
+      name: file.name,
+      text: contents[index],
+      subtitles: getPrintableSubtitles(contents[index], isVtt),
+    };
+  });
+  const title = getSubtitleTitle(printableSections);
+  appTitle.textContent = title;
+  brand.setAttribute('aria-label', `${title}, inicio`);
   fileInput.value = '';
+  downloadHtmlButton.disabled = !printableSections.some((section) => section.text.trim());
+  downloadVttButton.disabled = !canSaveAsVtt();
+  renderPreview();
 });
 
-clearButton.addEventListener('click', () => {
-  sourceText.value = '';
-  printableSections = [];
-  trackedSourceValue = '';
-  updateSourceMeta();
-  sourceText.focus();
-});
-
-processButton.addEventListener('click', () => {
-  showResult(processText(sourceText.value));
-});
-
-printableButton.addEventListener('click', openPrintableSubtitles);
+downloadVttButton.addEventListener('click', downloadAnnotatedVtt);
 downloadHtmlButton.addEventListener('click', downloadPrintableHtml);
 
-copyButton.addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(resultText.value);
-    resultMeta.textContent = 'List copied';
-    window.setTimeout(() => {
-      resultMeta.textContent = `${resultText.value.length.toLocaleString(navigator.language)} characters`;
-    }, 1800);
-  } catch {
-    resultText.select();
-    document.execCommand('copy');
-    resultMeta.textContent = 'Lista copiada';
-  }
+window.addEventListener('pagehide', () => {
+  audioPlayer.pause();
+  if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
 });
-
-downloadButton.addEventListener('click', () => {
-  const file = new Blob([resultText.value], { type: 'text/csv;charset=utf-8' });
-  const downloadUrl = URL.createObjectURL(file);
-  const link = document.createElement('a');
-  link.href = downloadUrl;
-  link.download = 'words.csv';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-});
-
-updateSourceMeta();

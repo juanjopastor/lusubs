@@ -1,8 +1,8 @@
 # LuSubs
 
-**Learn languages using subtitles.**
+**Preview and export subtitles as HTML.**
 
-LuSubs is a lightweight browser tool that turns subtitle files and plain text into a CSV of unique words and the subtitle lines they came from. It removes subtitle metadata, punctuation, symbols, and numbers from extracted words.
+LuSubs is a lightweight browser tool for previewing subtitle files and exporting them as a clean HTML document.
 
 ## Live demo
 
@@ -10,25 +10,21 @@ LuSubs is a lightweight browser tool that turns subtitle files and plain text in
 
 ## Features
 
-- Process `.srt`, `.vtt`, and `.txt` files.
-- Paste text directly into the editor.
-- Remove subtitle timestamps, cue numbers, and `WEBVTT` headers.
-- Extract words from different writing systems using Unicode-aware matching.
-- Remove duplicate words while respecting the browser's language settings.
-- Keep the first subtitle line where each unique word appears.
-- Copy the CSV result or download it as a `.csv` file.
-- Open or download a clean HTML subtitle view with timestamps and imported file names, ready to copy into a document.
+- Load `.srt` and `.vtt` files.
+- Load an `.mp3` file and click any timed subtitle cue to play just that segment.
+- Preview a clean HTML subtitle view with timestamps and imported file names without their `.srt`/`.vtt` extensions. Loading subtitles opens the preview in the same page, and the header shows the file name without its extension.
+- Add a note to each subtitle cue; notes appear below the cue in red.
+- Save annotated subtitles as `.vtt` files. Notes are stored in `NOTE LUSUBS` blocks, which WebVTT players ignore.
+- Download the subtitle view as an `.html` file.
+- Use the fixed header buttons to load and save subtitles on mobile or desktop.
 - Process everything locally in the browser. No uploads, accounts, or server required.
 
 ## How to use
 
-1. Paste subtitles or text into the input panel, or load one or more supported files.
-2. Click **Process text**.
-3. Review the unique word list in the output panel.
-3. Review the CSV rows in the output panel. Each row contains a unique word and its original subtitle line.
-4. Copy the CSV or save it as a `.csv` file.
-
-The tool uses `navigator.language` for case conversion, duplicate detection, sorting, and number formatting. The word extractor keeps letters and combining marks while excluding punctuation, symbols, and numbers.
+1. Select one or more `.srt` or `.vtt` files using **Load subtitles**.
+2. Select an `.mp3` file using the music button, then click a timed cue to play that segment.
+3. Select **+** beside a cue to add or edit a note.
+4. Use **Save HTML** for a printable view or **Save VTT** to keep cue notes embedded in a subtitle file.
 
 ## Run locally
 
@@ -47,6 +43,6 @@ python -m http.server
 
 ## Project files
 
-- `index.html` - application structure and interface text.
+- `index.html` - application structure.
 - `styles.css` - layout and visual styles.
-- `app.js` - subtitle cleanup, word extraction, and file actions.
+- `app.js` - subtitle parsing, cue annotations, audio playback, and HTML/WebVTT export actions.

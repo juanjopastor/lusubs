@@ -3,101 +3,52 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Turn subtitles and text into a list of unique words.">
-  <title>LuSubs | Subtitle cleaner</title>
+  <meta name="description" content="Preview subtitles and export them as a clean HTML document.">
+  <title>LuSubs | Subtitle HTML export</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main class="app-shell">
-    <header class="topbar">
-      <a class="brand" href="." aria-label="LuSubs, inicio">
-        <span class="brand-mark" aria-hidden="true">L</span>
-        <span>LuSubs</span>
-      </a>
-      <span class="status-dot"><span aria-hidden="true"></span> Local processing</span>
-    </header>
+  <header class="topbar">
+    <a class="brand" href="." aria-label="LuSubs, inicio">
+      <span class="brand-mark" aria-hidden="true">L</span>
+      <span id="appTitle">LuSubs</span>
+    </a>
+    <nav class="header-actions" aria-label="Subtitle and audio actions">
+      <button id="loadButton" class="icon-button" type="button" aria-label="Load subtitles" title="Load subtitles">
+        <svg class="nav-icon-svg" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 7h6l2 2h10v11H3z" />
+          <path d="M3 7V5h7l2 2" />
+        </svg>
+      </button>
+      <input id="fileInput" type="file" accept=".srt,.vtt" multiple hidden>
+      <button id="loadAudioButton" class="icon-button icon-button-audio" type="button" aria-label="Load MP3 audio" title="Load MP3 audio">
+        <span class="nav-icon" aria-hidden="true">♫</span>
+      </button>
+      <input id="audioInput" type="file" accept=".mp3,audio/mpeg" hidden>
+      <button id="downloadVttButton" class="icon-button icon-button-vtt" type="button" aria-label="Save annotated subtitle as WebVTT" title="Save annotated subtitle as WebVTT" disabled>
+        <svg class="nav-icon-svg" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 3h12l4 4v14H3V3z" />
+          <path d="M7 3v6h10V3M7 21v-8h10v8M16 5h.01" />
+        </svg>
+      </button>
+      <button id="downloadHtmlButton" class="icon-button icon-button-primary" type="button" aria-label="Save HTML" title="Save HTML" disabled>
+        <svg class="nav-icon-svg" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 9V3h12v6M6 17H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" />
+          <path d="M6 14h12v7H6zM18 12h.01" />
+        </svg>
+      </button>
+    </nav>
+  </header>
 
-    <section class="intro" aria-labelledby="page-title">
-      <p class="eyebrow">SUBTITLE / WORD TOOL</p>
-      <h1 id="page-title">From subtitles to<br><em>clean words.</em></h1>
-      <p class="intro-copy">Paste or load your subtitles. LuSubs returns each unique word with its original subtitle line, directly in your browser.</p>
-    </section>
+  <audio id="audioPlayer" preload="metadata" hidden></audio>
 
-    <section class="workspace" aria-label="Text processor">
-      <div class="panel panel-input">
-        <div class="panel-heading">
-          <div>
-            <p class="panel-kicker">01 / Input</p>
-            <h2>Source text</h2>
-          </div>
-          <span class="format-note">.srt &nbsp; .vtt &nbsp; .txt</span>
-        </div>
-        <label class="sr-only" for="sourceText">Source text</label>
-        <textarea id="sourceText" spellcheck="false" placeholder="Paste your subtitles or any text here..."></textarea>
-        <div class="panel-footer">
-          <span id="sourceMeta">0 characters</span>
-          <label class="file-button" for="fileInput">
-            <span class="upload-icon" aria-hidden="true">↥</span>
-            Load files
-          </label>
-          <input id="fileInput" type="file" accept=".srt,.vtt,text/plain" multiple hidden>
-          <button id="clearButton" class="copy-button" type="button">
-            <span aria-hidden="true">×</span> Clear
-          </button>
-        </div>
-      </div>
-
-      <div class="process-column">
-        <div class="process-line" aria-hidden="true"></div>
-        <div class="process-actions">
-          <button id="processButton" class="process-button" type="button">
-            <span>Process text</span>
-            <span class="button-arrow" aria-hidden="true">→</span>
-          </button>
-          <button id="printableButton" class="process-button printable-button" type="button">
-            <span>Printable</span>
-            <span class="button-arrow" aria-hidden="true">↗</span>
-          </button>
-          <button id="downloadHtmlButton" class="process-button printable-button" type="button">
-            <span>Save .html</span>
-            <span class="button-arrow" aria-hidden="true">↓</span>
-          </button>
-        </div>
-        <p class="process-hint">Clean, split and remove duplicates</p>
-      </div>
-
-      <div class="panel panel-output">
-        <div class="panel-heading">
-          <div>
-            <p class="panel-kicker">02 / Output</p>
-            <h2>Words and phrases</h2>
-          </div>
-          <span id="wordCount" class="count-badge">0 words</span>
-        </div>
-        <label class="sr-only" for="resultText">Processed CSV with words and phrases</label>
-        <textarea id="resultText" spellcheck="false" placeholder="Your CSV will appear here..."></textarea>
-        <div class="panel-footer output-footer">
-          <span id="resultMeta">Waiting for text</span>
-          <div class="output-actions">
-            <button id="copyButton" class="copy-button" type="button" disabled>
-              <span aria-hidden="true">□</span> Copy list
-            </button>
-            <button id="downloadButton" class="copy-button" type="button" disabled>
-              <span aria-hidden="true">↓</span> Save .csv
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <footer class="page-footer">
-      <span>No uploads. No accounts. Your data stays here.</span>
-      <span class="shortcut">PASTE <kbd>CTRL</kbd> + <kbd>V</kbd></span>
-    </footer>
+  <main id="workspace" class="workspace" aria-label="Subtitle preview">
+    <div id="previewContainer" class="preview-content" hidden></div>
   </main>
+
   <script src="app.js"></script>
 </body>
 </html>
