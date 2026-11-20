@@ -10,6 +10,8 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 
+html, body { overscroll-behavior-y: none; }
+
 body {
   min-width: 320px;
   min-height: 100vh;
@@ -82,6 +84,7 @@ button:enabled { cursor: pointer; }
   width: min(920px, 100%);
   height: 100%;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
   padding: 24px;
   background: #fff;
 }

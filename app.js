@@ -360,6 +360,7 @@ function saveNote(form) {
 
 loadButton.addEventListener('click', () => fileInput.click());
 loadAudioButton.addEventListener('click', () => audioInput.click());
+brand.addEventListener('click', (event) => event.preventDefault());
 
 audioInput.addEventListener('change', async () => {
   const file = audioInput.files[0];
