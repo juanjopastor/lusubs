@@ -2,7 +2,6 @@ const fileInput = document.querySelector('#fileInput');
 const loadButton = document.querySelector('#loadButton');
 const audioInput = document.querySelector('#audioInput');
 const loadAudioButton = document.querySelector('#loadAudioButton');
-const audioPlayer = document.querySelector('#audioPlayer');
 const downloadVttButton = document.querySelector('#downloadVttButton');
 const downloadHtmlButton = document.querySelector('#downloadHtmlButton');
 const previewContainer = document.querySelector('#previewContainer');
@@ -13,10 +12,13 @@ const subtitleTimecode = /^\s*(?:\d{1,2}:)?\d{2}:\d{2}[,.]\d{3}\s*-->\s*(?:\d{1,
 const printableTimecode = /^\s*((?:\d{1,2}:)?\d{2}:\d{2}[,.]\d{3})\s*-->\s*((?:\d{1,2}:)?\d{2}:\d{2}[,.]\d{3}).*$/;
 const subtitleIndex = /^\s*\d+\s*$/;
 let printableSections = [];
-let audioObjectUrl = '';
+let audioBuffer = null;
+let audioContext = null;
+let audioDecodeStatus = 'none';
+let audioLoadRequest = 0;
+let activeCueSource = null;
 let activeCueKey = null;
-let activeCueEnd = null;
-let cueStopTimer = 0;
+let cuePlaybackRequest = 0;
 
 function removeSubtitleMetadata(text) {
   return text
@@ -135,8 +137,15 @@ function getTimeInSeconds(timecode) {
   return hours * 3600 + minutes * 60 + seconds;
 }
 
+function getAudioContext() {
+  const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextConstructor) return null;
+  if (!audioContext) audioContext = new AudioContextConstructor();
+  return audioContext;
+}
+
 function canPlaySubtitle(subtitle) {
-  if (!audioObjectUrl || audioPlayer.readyState < 1 || audioPlayer.error || !subtitle.start || !subtitle.end) {
+  if (audioDecodeStatus !== 'ready' || !audioBuffer || !subtitle.start || !subtitle.end) {
     return false;
   }
 
@@ -146,7 +155,7 @@ function canPlaySubtitle(subtitle) {
     && Number.isFinite(end)
     && start >= 0
     && start < end
-    && start < audioPlayer.duration;
+    && start < audioBuffer.duration;
 }
 
 function updatePlaybackButtons() {
@@ -157,33 +166,19 @@ function updatePlaybackButtons() {
   });
 }
 
+function cancelCuePlayback() {
+  cuePlaybackRequest += 1;
+}
+
 function clearActiveCue() {
-  if (cueStopTimer) {
-    window.clearTimeout(cueStopTimer);
-    cueStopTimer = 0;
+  if (activeCueSource) {
+    const source = activeCueSource;
+    activeCueSource = null;
+    source.onended = null;
+    source.stop();
   }
   activeCueKey = null;
-  activeCueEnd = null;
   updatePlaybackButtons();
-}
-
-function stopCueAtEnd() {
-  if (activeCueEnd !== null && audioPlayer.currentTime >= activeCueEnd) {
-    audioPlayer.pause();
-    clearActiveCue();
-  }
-}
-
-function scheduleCueStop(cueKey) {
-  if (activeCueKey !== cueKey || activeCueEnd === null) return;
-
-  const remaining = (activeCueEnd - audioPlayer.currentTime) / audioPlayer.playbackRate;
-  cueStopTimer = window.setTimeout(() => {
-    cueStopTimer = 0;
-    if (activeCueKey !== cueKey || activeCueEnd === null) return;
-    stopCueAtEnd();
-    if (activeCueKey === cueKey) scheduleCueStop(cueKey);
-  }, Math.max(20, remaining * 1000));
 }
 
 function buildSubtitleMarkup(includeSectionTitles, includeNoteControls) {
@@ -201,8 +196,15 @@ function buildSubtitleMarkup(includeSectionTitles, includeNoteControls) {
       const note = subtitle.note ? `<p class="subtitle-note">${escapeHtml(subtitle.note)}</p>` : '';
       const canPlay = canPlaySubtitle(subtitle);
       const isPlaying = cueKey === activeCueKey;
+      const playTitle = canPlay
+        ? 'Play this subtitle'
+        : audioDecodeStatus === 'loading'
+          ? 'Preparing MP3 for accurate playback'
+          : audioDecodeStatus === 'error'
+            ? 'The MP3 could not be decoded'
+            : 'Load an MP3 to play this subtitle';
       const playbackButton = includeNoteControls
-        ? `<button class="subtitle-play${isPlaying ? ' is-playing' : ''}" type="button" data-play-cue data-cue-key="${cueKey}" data-section="${sectionIndex}" data-subtitle="${subtitleIndex}" aria-label="Play subtitle ${subtitleIndex + 1}" aria-pressed="${isPlaying}" title="${canPlay ? 'Play this subtitle' : 'Load an MP3 to play this subtitle'}" ${canPlay ? '' : 'disabled'}>
+        ? `<button class="subtitle-play${isPlaying ? ' is-playing' : ''}" type="button" data-play-cue data-cue-key="${cueKey}" data-section="${sectionIndex}" data-subtitle="${subtitleIndex}" aria-label="Play subtitle ${subtitleIndex + 1}" aria-pressed="${isPlaying}" title="${playTitle}" ${canPlay ? '' : 'disabled'}>
             ${timestamp}<span class="subtitle-text">${text}</span>
           </button>`
         : `<div class="subtitle-content">${timestamp}<p class="subtitle-text">${text}</p></div>`;
@@ -272,27 +274,39 @@ function playSubtitleCue(button) {
   if (!canPlaySubtitle(subtitle)) return;
 
   const cueKey = button.dataset.cueKey;
-  if (activeCueKey === cueKey && !audioPlayer.paused) {
-    audioPlayer.pause();
+  if (activeCueKey === cueKey && activeCueSource) {
+    cancelCuePlayback();
     clearActiveCue();
     return;
   }
 
-  audioPlayer.pause();
+  cancelCuePlayback();
+  const playbackRequest = cuePlaybackRequest;
   clearActiveCue();
   activeCueKey = cueKey;
-  activeCueEnd = Math.min(getTimeInSeconds(subtitle.end), audioPlayer.duration);
-  audioPlayer.currentTime = getTimeInSeconds(subtitle.start);
+  const start = getTimeInSeconds(subtitle.start);
+  const end = Math.min(getTimeInSeconds(subtitle.end), audioBuffer.duration);
   updatePlaybackButtons();
 
-  const playback = audioPlayer.play();
-  if (playback) {
-    playback.then(() => scheduleCueStop(cueKey));
-    playback.catch(() => {
-      if (activeCueKey === cueKey) clearActiveCue();
+  audioContext.resume().then(() => {
+    if (playbackRequest !== cuePlaybackRequest || activeCueKey !== cueKey || !audioBuffer) return;
+    const source = audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(audioContext.destination);
+    source.onended = () => {
+      if (activeCueSource !== source) return;
+      activeCueSource = null;
+      activeCueKey = null;
+      updatePlaybackButtons();
+    };
+    source.start(0, start, end - start);
+    activeCueSource = source;
+  }).catch(() => {
+    if (playbackRequest === cuePlaybackRequest) {
+      clearActiveCue();
       window.alert('The selected audio could not be played.');
-    });
-  }
+    }
+  });
 }
 
 function downloadFile(contents, filename, contentType) {
@@ -345,7 +359,7 @@ function saveNote(form) {
 loadButton.addEventListener('click', () => fileInput.click());
 loadAudioButton.addEventListener('click', () => audioInput.click());
 
-audioInput.addEventListener('change', () => {
+audioInput.addEventListener('change', async () => {
   const file = audioInput.files[0];
   if (!file) return;
   if (!/\.mp3$/i.test(file.name) && !/^audio\/(?:mpeg|mp3)$/i.test(file.type)) {
@@ -354,28 +368,38 @@ audioInput.addEventListener('change', () => {
     return;
   }
 
-  const previousUrl = audioObjectUrl;
-  audioPlayer.pause();
+  if (!window.confirm('For accurate cue playback, the full MP3 must be decoded into memory. Long files can require hundreds of MB. Continue?')) {
+    audioInput.value = '';
+    return;
+  }
+
+  const loadRequest = ++audioLoadRequest;
+  cancelCuePlayback();
   clearActiveCue();
-  audioObjectUrl = URL.createObjectURL(file);
-  audioPlayer.src = audioObjectUrl;
-  audioPlayer.load();
-  if (previousUrl) URL.revokeObjectURL(previousUrl);
+  audioBuffer = null;
+  audioDecodeStatus = 'loading';
+  loadAudioButton.disabled = true;
   audioInput.value = '';
-});
-
-audioPlayer.addEventListener('loadedmetadata', () => {
   if (printableSections.length) renderPreview();
-});
 
-audioPlayer.addEventListener('timeupdate', stopCueAtEnd);
-
-audioPlayer.addEventListener('ended', clearActiveCue);
-
-audioPlayer.addEventListener('error', () => {
-  clearActiveCue();
-  if (printableSections.length) renderPreview();
-  window.alert('The selected MP3 audio could not be loaded.');
+  try {
+    const context = getAudioContext();
+    if (!context) throw new Error('This browser does not support Web Audio.');
+    const encodedAudio = await file.arrayBuffer();
+    const decodedAudio = await context.decodeAudioData(encodedAudio);
+    if (loadRequest !== audioLoadRequest) return;
+    audioBuffer = decodedAudio;
+    audioDecodeStatus = 'ready';
+  } catch (error) {
+    if (loadRequest !== audioLoadRequest) return;
+    audioDecodeStatus = 'error';
+    window.alert(`The selected MP3 could not be prepared for accurate playback. ${error.message}`);
+  } finally {
+    if (loadRequest === audioLoadRequest) {
+      loadAudioButton.disabled = false;
+      if (printableSections.length) renderPreview();
+    }
+  }
 });
 
 previewContainer.addEventListener('click', (event) => {
@@ -413,7 +437,7 @@ fileInput.addEventListener('change', async () => {
   if (!files.length) return;
 
   const contents = await Promise.all(files.map((file) => file.text()));
-  audioPlayer.pause();
+  cancelCuePlayback();
   clearActiveCue();
   printableSections = files.map((file, index) => {
     const isVtt = /\.vtt$/i.test(file.name);
@@ -436,6 +460,7 @@ downloadVttButton.addEventListener('click', downloadAnnotatedVtt);
 downloadHtmlButton.addEventListener('click', downloadPrintableHtml);
 
 window.addEventListener('pagehide', () => {
-  audioPlayer.pause();
-  if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
+  audioLoadRequest += 1;
+  cancelCuePlayback();
+  clearActiveCue();
 });

@@ -11,7 +11,7 @@ LuSubs is a lightweight browser tool for previewing subtitle files and exporting
 ## Features
 
 - Load `.srt` and `.vtt` files.
-- Load an `.mp3` file and click any timed subtitle cue to play just that segment.
+- Load an `.mp3` file and click any timed subtitle cue to play just that segment. The audio is decoded locally for accurate timing, which can use substantial memory for long files.
 - Preview a clean HTML subtitle view with timestamps and imported file names without their `.srt`/`.vtt` extensions. Loading subtitles opens the preview in the same page, and the header shows the file name without its extension.
 - Add a note to each subtitle cue; notes appear below the cue in red.
 - Save annotated subtitles as `.vtt` files. Notes are stored in `NOTE LUSUBS` blocks, which WebVTT players ignore.
