@@ -26,6 +26,12 @@ LuSubs is a lightweight browser tool for previewing subtitle files and exporting
 3. Select **+** beside a cue to add or edit a note.
 4. Use **Save HTML** for a printable view or **Save VTT** to keep cue notes embedded in a subtitle file.
 
+## Install as an app
+
+Open the hosted site over HTTPS. In Chrome or Edge, use the **Install LuSubs** button when it appears, or the browser's install option. On iPhone or iPad, use Safari's **Share** menu and choose **Add to Home Screen**. Opening `index.html` directly from disk does not support installation; for local testing, serve the app from `localhost`.
+
+The app shell is cached after the first visit so it can open offline. Subtitle and audio files are still selected locally and are not uploaded.
+
 ## Run locally
 
 LuSubs is a dependency-free static web application. Clone the repository and open `index.html` in a browser, or serve the directory with any local static web server.
@@ -46,3 +52,6 @@ python -m http.server
 - `index.html` - application structure.
 - `styles.css` - layout and visual styles.
 - `app.js` - subtitle parsing, cue annotations, audio playback, and HTML/WebVTT export actions.
+- `manifest.webmanifest` - install name, launch mode, and app icons.
+- `service-worker.js` - app-shell caching for offline launches.
+- `icons/` - install and home-screen icons.

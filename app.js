@@ -4,6 +4,7 @@ const audioInput = document.querySelector('#audioInput');
 const loadAudioButton = document.querySelector('#loadAudioButton');
 const downloadVttButton = document.querySelector('#downloadVttButton');
 const downloadHtmlButton = document.querySelector('#downloadHtmlButton');
+const installButton = document.querySelector('#installButton');
 const previewContainer = document.querySelector('#previewContainer');
 const appTitle = document.querySelector('#appTitle');
 const brand = document.querySelector('.brand');
@@ -19,6 +20,7 @@ let audioLoadRequest = 0;
 let activeCueSource = null;
 let activeCueKey = null;
 let cuePlaybackRequest = 0;
+let deferredInstallPrompt = null;
 
 function removeSubtitleMetadata(text) {
   return text
@@ -464,3 +466,39 @@ window.addEventListener('pagehide', () => {
   cancelCuePlayback();
   clearActiveCue();
 });
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  installButton.hidden = false;
+});
+
+installButton.addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+
+  const installPrompt = deferredInstallPrompt;
+  deferredInstallPrompt = null;
+  installButton.disabled = true;
+  try {
+    await installPrompt.prompt();
+    await installPrompt.userChoice;
+  } catch (error) {
+    console.error('The app installation prompt failed.', error);
+  } finally {
+    installButton.disabled = false;
+    installButton.hidden = true;
+  }
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  installButton.hidden = true;
+});
+
+if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch((error) => {
+      console.error('The service worker could not be registered.', error);
+    });
+  });
+}
