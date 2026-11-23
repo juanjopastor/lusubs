@@ -205,7 +205,7 @@ function buildSubtitleMarkup(includeSectionTitles, includeNoteControls) {
           : audioDecodeStatus === 'error'
             ? 'The MP3 could not be decoded'
             : 'Load an MP3 to play this subtitle';
-      const playbackButton = includeNoteControls
+      const playbackButton = includeNoteControls && audioDecodeStatus === 'ready' && audioBuffer
         ? `<button class="subtitle-play${isPlaying ? ' is-playing' : ''}" type="button" data-play-cue data-cue-key="${cueKey}" data-section="${sectionIndex}" data-subtitle="${subtitleIndex}" aria-label="Play subtitle ${subtitleIndex + 1}" aria-pressed="${isPlaying}" title="${playTitle}" ${canPlay ? '' : 'disabled'}>
             ${timestamp}<span class="subtitle-text">${text}</span>
           </button>`

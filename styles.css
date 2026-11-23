@@ -97,6 +97,7 @@ button:enabled { cursor: pointer; }
   margin-bottom: 16px;
 }
 
+.subtitle-content { min-width: 0; grid-column: 1; grid-row: 1; }
 .subtitle-play {
   display: flex;
   min-width: 0;
