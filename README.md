@@ -24,7 +24,7 @@ LuSubs is a lightweight browser tool for previewing subtitle files and exporting
 1. Select one or more `.srt` or `.vtt` files using **Load subtitles**.
 2. Select an `.mp3` file using the music button, then click a timed cue to play that segment.
 3. Select **+** beside a cue to add or edit a note.
-4. While editing, select **×** beside the note field to clear its text; then choose **Save note** to apply the change or **Cancel** to discard it.
+4. While editing, select **×** beside the note field to clear and save the note, closing the editor.
 5. Use **Save HTML** for a printable view or **Save VTT** to keep cue notes embedded in a subtitle file.
 
 ## Install as an app

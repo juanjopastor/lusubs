@@ -423,9 +423,9 @@ previewContainer.addEventListener('click', (event) => {
     form.hidden = false;
     form.querySelector('.note-input').focus();
   } else if (button.dataset.noteAction === 'clear') {
-    const input = button.closest('.note-editor').querySelector('.note-input');
-    input.value = '';
-    input.focus();
+    const form = button.closest('.note-editor');
+    form.querySelector('.note-input').value = '';
+    saveNote(form);
   } else if (button.dataset.noteAction === 'cancel') {
     const form = button.closest('.note-editor');
     const section = printableSections[Number(form.dataset.section)];
