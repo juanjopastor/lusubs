@@ -213,7 +213,10 @@ function buildSubtitleMarkup(includeSectionTitles, includeNoteControls) {
       const noteControls = includeNoteControls
         ? `<button class="note-trigger" type="button" data-note-action="edit" aria-label="Add or edit note for subtitle ${subtitleIndex + 1}">+</button>
           <form class="note-editor" data-section="${sectionIndex}" data-subtitle="${subtitleIndex}" hidden>
-            <input class="note-input" type="text" aria-label="Note for subtitle ${subtitleIndex + 1}" placeholder="Write a note..." value="${escapeHtml(subtitle.note || '')}">
+            <div class="note-input-row">
+              <input class="note-input" type="text" aria-label="Note for subtitle ${subtitleIndex + 1}" placeholder="Write a note..." value="${escapeHtml(subtitle.note || '')}">
+              <button class="note-clear" type="button" data-note-action="clear" aria-label="Clear note" title="Clear note">×</button>
+            </div>
             <div class="note-actions">
               <button class="note-save" type="submit">Save note</button>
               <button class="note-cancel" type="button" data-note-action="cancel">Cancel</button>
@@ -419,6 +422,10 @@ previewContainer.addEventListener('click', (event) => {
     const form = button.closest('.subtitle-row').querySelector('.note-editor');
     form.hidden = false;
     form.querySelector('.note-input').focus();
+  } else if (button.dataset.noteAction === 'clear') {
+    const input = button.closest('.note-editor').querySelector('.note-input');
+    input.value = '';
+    input.focus();
   } else if (button.dataset.noteAction === 'cancel') {
     const form = button.closest('.note-editor');
     const section = printableSections[Number(form.dataset.section)];
